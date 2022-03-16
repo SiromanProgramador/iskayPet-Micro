@@ -3,15 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
+
+	//PETS domain
 	PetsRepo "iskayPetMicro/Domains/pets/entity/repository/mongodb"
 	PetsInterface "iskayPetMicro/Domains/pets/interface"
 	PetsUsecase "iskayPetMicro/Domains/pets/usecase"
+
+	//SPECIES domain
 	SpeciesRepo "iskayPetMicro/Domains/species/entity/repository/mongodb"
+
 	"log"
 	"net"
-
-	// gin-swagger middleware
-	// swagger embed files
 
 	pb "iskayPetMicro/api"
 
@@ -20,6 +22,7 @@ import (
 	"gopkg.in/mgo.v2"
 )
 
+//server struct
 type server struct {
 	pb.UnimplementedCreatePetServiceServer
 	pb.UnimplementedGetPetsServiceServer
@@ -28,6 +31,7 @@ type server struct {
 
 var db *mgo.Database
 
+//function to load Pet repositories to be called by all microservices methods
 func loadPetsRepositories() PetsInterface.InterfaceInterface {
 	petsRepo := PetsRepo.NewMongoDBRepository(db.Session)
 	speciesRepo := SpeciesRepo.NewMongoDBRepository(db.Session)
@@ -37,8 +41,10 @@ func loadPetsRepositories() PetsInterface.InterfaceInterface {
 	return petsInterface
 }
 
+//CreatePet server Funciton
 func (s *server) CreatePet(ctx context.Context, in *pb.CreatePetRequest) (*pb.CreatePetReply, error) {
 
+	//charge Pet Interface with repositories
 	petsInterface := loadPetsRepositories()
 
 	response, err := petsInterface.CreatePet(*in.Pet)
@@ -50,8 +56,10 @@ func (s *server) CreatePet(ctx context.Context, in *pb.CreatePetRequest) (*pb.Cr
 	}
 }
 
+//GetPet Server Funciton
 func (s *server) GetPets(ctx context.Context, in *pb.GetPetsRequest) (*pb.GetPetsReply, error) {
 
+	//charge Pet Interface with repositories
 	petsInterface := loadPetsRepositories()
 
 	response, err := petsInterface.GetAllPets(in.Filter)
@@ -63,8 +71,10 @@ func (s *server) GetPets(ctx context.Context, in *pb.GetPetsRequest) (*pb.GetPet
 	}
 }
 
+//GetStatistics server Funcion
 func (s *server) GetStatistics(ctx context.Context, in *pb.GetStatisticsRequest) (*pb.GetStatisticsReply, error) {
 
+	//charge Pet Interface with repositories
 	petsInterface := loadPetsRepositories()
 
 	response, err := petsInterface.GetStatistics(in.PetName)
@@ -77,23 +87,25 @@ func (s *server) GetStatistics(ctx context.Context, in *pb.GetStatisticsRequest)
 }
 
 func main() {
-	db = MongoStart()
 	//Init DataBase
-	//Boot.Boot(db.Session)
-	// create a listener on TCP port 7777
+	db = MongoStart()
+
+	// create a listener on TCP port 7770
 	log.Println("[START] ISKAYPET Micro")
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", 7770))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
+
 	// create a server instance
 	s := server{}
+
 	// create a gRPC server object
 	grpcServer := grpc.NewServer()
 	// attach the Ping service to the server
 	// start the server
 
-	//pets
+	//pets register services
 	pb.RegisterCreatePetServiceServer(grpcServer, &s)
 	pb.RegisterGetPetsServiceServer(grpcServer, &s)
 	pb.RegisterGetStatisticsServiceServer(grpcServer, &s)

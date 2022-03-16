@@ -6,6 +6,7 @@ import (
 	"iskayPetMicro/model"
 )
 
+//PetInterface that recive data, prepare and send this data to be manipulated to the next layer
 type InterfaceInterface interface {
 	GetAllPets(filter string) ([]*pb.Pet, error)
 	GetStatistics(petName string) (*pb.ResponseStatistics, error)

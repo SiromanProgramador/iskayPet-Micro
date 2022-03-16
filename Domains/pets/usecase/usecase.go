@@ -7,6 +7,7 @@ import (
 	"iskayPetMicro/model"
 	"iskayPetMicro/presenters"
 	"math"
+	"strings"
 
 	"gopkg.in/mgo.v2/bson"
 )
@@ -17,6 +18,7 @@ type UsecaseInterface interface {
 	GetAllPets(filter model.QueryFilters) ([]*pb.Pet, error)
 }
 
+//import both repositories, pets and species to be able to use species methods
 type Usecase struct {
 	repo        repository.RepositoryInterface
 	speciesRepo SpeciesRepo.RepositoryInterface
@@ -37,10 +39,15 @@ func (u *Usecase) CreatePet(protoObjectToCreate pb.Pet) (pb.Pet, error) {
 	var qFilter model.QueryFilters
 	var species model.Species
 	var errSpecies error
+
+	//parsed name to lower case to no duplicate information. Example: cat - Cat - cAt - caT
+	petNameParsed := strings.ToLower(protoObjectToCreate.Species)
+
 	//check if species is in db
-	qFilter.Filter = bson.M{"name": protoObjectToCreate.Species}
+	qFilter.Filter = bson.M{"name": petNameParsed}
 	species, errSpecies = u.speciesRepo.GetOne(&qFilter)
 
+	//if errSpecies has a different error that not found, return
 	if errSpecies != nil && errSpecies.Error() != "not found" {
 		return protoObjectToCreate, errSpecies
 	}
@@ -50,7 +57,7 @@ func (u *Usecase) CreatePet(protoObjectToCreate pb.Pet) (pb.Pet, error) {
 
 		species.Id = bson.NewObjectId()
 		species.Instance = presenters.CreateInstance()
-		species.Name = protoObjectToCreate.Species
+		species.Name = petNameParsed
 
 		errCreateSpecies := u.speciesRepo.Create(&species)
 		if errCreateSpecies != nil {
@@ -85,6 +92,7 @@ func (u *Usecase) GetStatistics(queryFilters model.QueryFilters) (pb.ResponseSta
 	var sumAges int
 	var sd float64
 
+	//get All species calling species repository
 	species, errSpecies := u.speciesRepo.GetAll(filter)
 	if errSpecies != nil {
 		return response, errSpecies
@@ -93,7 +101,7 @@ func (u *Usecase) GetStatistics(queryFilters model.QueryFilters) (pb.ResponseSta
 	//init counters
 	maxPetsNumber = 0
 
-	//find what species has more pets in DB
+	//find what species has more pets in DB, for each specie get count
 	for _, specie := range species {
 
 		filter.Filter = bson.M{"speciesId": specie.Id}
@@ -115,7 +123,10 @@ func (u *Usecase) GetStatistics(queryFilters model.QueryFilters) (pb.ResponseSta
 	filter.Filter = bson.M{"speciesId": maxPetsBySpeciesId}
 	pets, errPets := u.repo.GetAll(filter)
 
+	//assign the maximum species name to response
 	response.Species = maxPetsBySpeciesName
+
+	//calculate  average age for this species
 	for _, pet := range pets {
 		ages = append(ages, pet.Age)
 		sumAges += pet.Age
@@ -123,6 +134,7 @@ func (u *Usecase) GetStatistics(queryFilters model.QueryFilters) (pb.ResponseSta
 
 	response.AverageAge = float64(sumAges) / float64(len(ages))
 
+	//calculate standard deviation
 	for _, age := range ages {
 		sd += math.Pow(float64(age)-response.AverageAge, 2)
 	}
@@ -138,7 +150,11 @@ func (u *Usecase) GetAllPets(filter model.QueryFilters) ([]*pb.Pet, error) {
 
 	var response []*pb.Pet
 	pets, errPets := u.repo.GetAll(filter)
+
+	//parse mongodb object to protobuf object because  in protobuf file we can't use ObjectId
+	//and we need the species name in the response
 	for _, pet := range pets {
+
 		var protoPet pb.Pet
 
 		protoPet.Age = int32(pet.Age)

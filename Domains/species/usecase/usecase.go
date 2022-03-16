@@ -5,8 +5,9 @@ import (
 	"iskayPetMicro/model"
 )
 
+//usecase interface layer with all basic CRUD methods
 type UsecaseInterface interface {
-	Create(author model.Species) (model.Species, error)
+	Create(objectToCreate model.Species) (model.Species, error)
 	Delete(filfer model.QueryFilters) error
 	GetOne(queryFilters model.QueryFilters) (model.Species, error)
 	GetAll(filter model.QueryFilters) ([]model.Species, error)
